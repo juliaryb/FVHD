@@ -6,9 +6,11 @@ import numpy as np
 import pandas as pd
 import torch
 import torchvision
+from imblearn.under_sampling import TomekLinks
 
 from fvhd import FVHD
 from knn import Graph, NeighborConfig, NeighborGenerator
+from utils import metrics
 
 
 def setup_ssl():
@@ -55,12 +57,12 @@ def create_or_load_graph(X: torch.Tensor, nn: int) -> tuple[Graph, Graph]:
 
 
 def visualize_embeddings(x: np.ndarray, y: torch.Tensor, dataset_name: str):
-    plt.switch_backend("TkAgg")
+    # plt.switch_backend("TkAgg")
     plt.figure(figsize=(8, 8))
     plt.title(f"{dataset_name} 2d visualization")
 
-    y = y.numpy()
-    for i in range(20):
+    unique_labels = np.unique(y)
+    for i in range(len(unique_labels)):
         points = x[y == i]
         plt.scatter(
             points[:, 0], points[:, 1], label=f"{i}", marker=".", s=1, alpha=0.5
@@ -69,28 +71,66 @@ def visualize_embeddings(x: np.ndarray, y: torch.Tensor, dataset_name: str):
     plt.show()
 
 
+def prep_data_and_graphs(dataset_name: str = "mnist", NN: int = 5, connected: bool = False, undersample: bool = False) -> tuple[torch.Tensor, torch.Tensor, Graph, Graph]:
+    X, Y = load_dataset(dataset_name)
+
+    print(f"dataset size: {len(X)}")
+
+    if connected:
+        graph, mutual_graph = create_or_load_graph(X, NN)
+        connected_indices = graph._get_connected_components()
+        X, Y = X[connected_indices], Y[connected_indices]
+        print(f"reduced dataset size: {len(X)}")
+
+    if undersample:
+        tl = TomekLinks()
+        X, Y = tl.fit_resample(X, Y)
+        X, Y = torch.tensor(X), torch.tensor(Y)
+        print(f"reduced dataset size: {len(X)}")
+
+    graph, mutual_graph = create_or_load_graph(X, NN)
+
+    # if undersample:
+    #     tl = TomekLinks()
+    #     X, Y = tl.fit_resample(X, Y)
+    #     X, Y = torch.tensor(X), torch.tensor(Y)
+    #     print(f"reduced dataset size: {len(X)}")
+    #
+    # graph, mutual_graph = create_or_load_graph(X, NN)
+    #
+    # if connected:
+    #     connected_indices = graph._get_connected_components()
+    #     X, Y = X[connected_indices], Y[connected_indices]
+    #     print(f"reduced dataset size: {len(X)}")
+    #     graph, mutual_graph = create_or_load_graph(X, NN)
+
+    return X, Y, graph, mutual_graph
+
 if __name__ == "__main__":
     setup_ssl()
 
-    DATASET_NAME = "emnist"
-
-    X, Y = load_dataset(DATASET_NAME)
-    graph, mutual_graph = create_or_load_graph(X, 5)
+    dataset_name: str = "mnist"
+    connected: bool = True
+    undersample: bool = True
+    NN: int = 4
 
     fvhd = FVHD(
         n_components=2,
-        nn=5,
+        nn=NN,
         rn=2,
         c=0.2,
         eta=0.2,
         optimizer=None,
         optimizer_kwargs={"lr": 0.1},
         epochs=2000,
-        device="mps",
+        device="cpu",
         velocity_limit=True,
         autoadapt=True,
         mutual_neighbors_epochs=300
     )
 
+    X, Y, graph, mutual_graph = prep_data_and_graphs(dataset_name, NN, connected, undersample)
+
     embeddings = fvhd.fit_transform(X, [graph, mutual_graph])
-    visualize_embeddings(embeddings, Y, DATASET_NAME)
+    visualize_embeddings(embeddings, Y, dataset_name)
+    cf_values, _ = metrics.visualise_cf_scores(embeddings, Y, dataset_name)

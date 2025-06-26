@@ -66,3 +66,32 @@ class Graph:
 
         conflicts = np.any(source_labels[:, np.newaxis] != neighbor_labels, axis=1)
         return pd.Series(np.where(conflicts)[0])
+
+    def _get_connected_components(self, largest: bool = True):
+
+        if self.indexes is None:
+            raise ValueError("Graph not initialized")
+
+        visited = [False for _ in self.indexes]
+        components = []
+
+        for index in range(len(self.indexes)):
+
+            if visited[index]: continue
+
+            stack = [index]
+            component = []
+
+            while stack:
+                node = stack.pop()
+                if not visited[node]:
+                    visited[node] = True
+                    component.append(node)
+                    for neighbor in reversed(self.get_neighbors(node)):
+                        if not visited[neighbor]:
+                            stack.append(neighbor)
+
+            components.append(component)
+
+        components = sorted(components, key = len, reverse = True)
+        return components[0] if largest else components
