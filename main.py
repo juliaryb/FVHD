@@ -10,7 +10,7 @@ from imblearn.under_sampling import TomekLinks
 
 from fvhd import FVHD
 from knn import Graph, NeighborConfig, NeighborGenerator
-from utils import metrics
+from utils import metrics, interactive_visualisation
 
 
 def setup_ssl():
@@ -90,20 +90,6 @@ def prep_data_and_graphs(dataset_name: str = "mnist", NN: int = 5, connected: bo
 
     graph, mutual_graph = create_or_load_graph(X, NN)
 
-    # if undersample:
-    #     tl = TomekLinks()
-    #     X, Y = tl.fit_resample(X, Y)
-    #     X, Y = torch.tensor(X), torch.tensor(Y)
-    #     print(f"reduced dataset size: {len(X)}")
-    #
-    # graph, mutual_graph = create_or_load_graph(X, NN)
-    #
-    # if connected:
-    #     connected_indices = graph._get_connected_components()
-    #     X, Y = X[connected_indices], Y[connected_indices]
-    #     print(f"reduced dataset size: {len(X)}")
-    #     graph, mutual_graph = create_or_load_graph(X, NN)
-
     return X, Y, graph, mutual_graph
 
 if __name__ == "__main__":
@@ -111,7 +97,7 @@ if __name__ == "__main__":
 
     dataset_name: str = "mnist"
     connected: bool = True
-    undersample: bool = True
+    undersample: bool = False
     NN: int = 4
 
     fvhd = FVHD(
@@ -134,3 +120,4 @@ if __name__ == "__main__":
     embeddings = fvhd.fit_transform(X, [graph, mutual_graph])
     visualize_embeddings(embeddings, Y, dataset_name)
     cf_values, _ = metrics.visualise_cf_scores(embeddings, Y, dataset_name)
+    interactive_visualisation.plot_embedding(embeddings, Y, graph, dataset_name)
