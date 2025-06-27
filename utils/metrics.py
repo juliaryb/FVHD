@@ -43,6 +43,9 @@ def compute_cf(X_low_dim: np.ndarray, y: np.ndarray, nn_max: int = 30) -> tuple[
     - cf_values: list of cf_nn values
     - cf: float, average class fidelity score
     """
+    if isinstance(y, torch.Tensor):
+        y = y.numpy()
+
     cf_values = [compute_cf_nn(X_low_dim, y, nn) for nn in range(1, nn_max + 1)]
     return cf_values, float(np.mean(cf_values))
 
@@ -83,3 +86,41 @@ def visualise_cf_scores(x: np.ndarray, y: torch.Tensor, dataset_name: str, nn_ma
     cf_values, cf_avg = compute_cf(x, y, nn_max=nn_max)
     visualize_cf(cf_values, method_name=f"{dataset_name} (avg CF={cf_avg:.2f})")
     return cf_values, cf_avg
+
+def visualise_cf_multiple_runs(
+    cf_values_list: list[list[float]], method_name: str = "", save_path: Optional[str] = None
+) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Plot the mean CF curve with standard deviation shading over multiple runs.
+
+    Parameters:
+    - cf_values_list: list of cf_values lists from different runs
+    - method_name: str, label for the title
+    - save_path: optional path to save the plot as PNG (if provided)
+
+    Returns:
+    - mean_cf: np.ndarray of shape (nn_max,)
+    - std_cf: np.ndarray of shape (nn_max,)
+    """
+    cf_array = np.array(cf_values_list)  # shape (runs, nn_max)
+    mean_cf = cf_array.mean(axis=0)
+    std_cf = cf_array.std(axis=0)
+    x = np.arange(1, len(mean_cf) + 1)
+
+    plt.figure(figsize=(8, 5))
+    plt.plot(x, mean_cf, color="blue", label="Mean CF")
+    plt.fill_between(x, mean_cf - std_cf, mean_cf + std_cf, color="blue", alpha=0.2, label="±1 std dev")
+    plt.xlabel("Number of Nearest Neighbors (nn)")
+    plt.ylabel("Class Fidelity $cf_{nn}$")
+    plt.title(f"Class Fidelity Curve – {method_name}")
+    plt.grid(True)
+    plt.legend()
+    plt.tight_layout()
+
+    if save_path:
+        plt.savefig(save_path, dpi=300)
+        plt.close()
+    else:
+        plt.show()
+
+    return mean_cf, std_cf

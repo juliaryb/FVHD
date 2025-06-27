@@ -117,7 +117,17 @@ if __name__ == "__main__":
 
     X, Y, graph, mutual_graph = prep_data_and_graphs(dataset_name, NN, connected, undersample)
 
-    embeddings = fvhd.fit_transform(X, [graph, mutual_graph])
-    visualize_embeddings(embeddings, Y, dataset_name)
-    cf_values, _ = metrics.visualise_cf_scores(embeddings, Y, dataset_name)
-    interactive_visualisation.plot_embedding(embeddings, Y, graph, dataset_name)
+    # embeddings = fvhd.fit_transform(X, [graph, mutual_graph])
+    # visualize_embeddings(embeddings, Y, dataset_name)
+    # cf_values, _ = metrics.visualise_cf_scores(embeddings, Y, dataset_name)
+    # interactive_visualisation.plot_embedding(embeddings, Y, graph, dataset_name)
+
+    cf_all_runs = []
+    for i in range(5):  # 5 repeated runs
+        embedding = fvhd.fit_transform(X, [graph, mutual_graph])
+        cf_values, _ = metrics.compute_cf(embedding, Y)
+        cf_all_runs.append(cf_values)
+
+    visualize_embeddings(embedding, Y, dataset_name)
+
+    metrics.visualise_cf_multiple_runs(cf_all_runs, method_name="MNIST NN=5")
